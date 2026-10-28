@@ -40,6 +40,16 @@ class WebhookSignatureVerifierTest extends TestCase
         $this->assertFalse($attacker->isValid('123', '{"a":1}', $header));
     }
 
+    public function test_it_rejects_everything_when_the_secret_is_missing(): void
+    {
+        // A fail-open verifier would authenticate a signature computed with an
+        // empty key; an unconfigured secret must reject instead.
+        $verifier = new WebhookSignatureVerifier('');
+        $forged = 'sha256='.hash_hmac('sha256', '123.{"a":1}', '');
+
+        $this->assertFalse($verifier->isValid('123', '{"a":1}', $forged));
+    }
+
     public function test_it_rejects_malformed_signature_header(): void
     {
         $verifier = new WebhookSignatureVerifier('secret');

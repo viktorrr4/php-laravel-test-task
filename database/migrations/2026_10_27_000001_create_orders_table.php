@@ -35,6 +35,11 @@ return new class extends Migration
             // Guards out-of-order delivery: we only overwrite state from a
             // snapshot that is at least as fresh as the one already stored.
             $table->timestamp('marketplace_updated_at');
+            // Marketplace `created_at` of the event whose snapshot is currently
+            // applied. Together with marketplace_updated_at it gives a stable
+            // tie-break when two snapshots share an updated_at, so a late
+            // redelivery cannot flip state after a restart.
+            $table->timestamp('last_event_at')->nullable();
 
             $table->timestamps();
 

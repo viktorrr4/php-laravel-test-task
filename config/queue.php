@@ -30,6 +30,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Notification claim TTL
+    |--------------------------------------------------------------------------
+    |
+    | Seconds a SendCustomerNotificationJob claim (customer_notifications.claimed_at)
+    | is honoured before it is considered abandoned — e.g. the worker died between
+    | claiming and sending. app:reconcile-queued-work releases claims older than
+    | this so the email can be retried, while a live claim still blocks a racing
+    | worker from sending twice.
+    |
+    */
+
+    'notification_claim_ttl' => (int) env('QUEUE_NOTIFICATION_CLAIM_TTL', 300),
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------
     |

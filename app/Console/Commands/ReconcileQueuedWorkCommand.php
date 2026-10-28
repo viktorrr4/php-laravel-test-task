@@ -42,14 +42,33 @@ class ReconcileQueuedWorkCommand extends Command
             ProcessWebhookEventJob::dispatch($event->id);
         }
 
+        // A claim older than its TTL belonged to a worker that never finished
+        // (e.g. the process died between claiming and sending). Release it so the
+        // notification is eligible for re-dispatch; a still-live claim is left
+        // alone so we never race a worker that is actively sending.
+        $claimStaleBefore = CarbonImmutable::now()->subSeconds((int) config('queue.notification_claim_ttl', 300));
+
+        $released = CustomerNotification::query()
+            ->whereNull('sent_at')
+            ->whereNull('suppressed_at')
+            ->whereNotNull('claimed_at')
+            ->where('claimed_at', '<=', $claimStaleBefore)
+            ->update(['claimed_at' => null]);
+
         $notifications = CustomerNotification::query()
             ->whereNull('sent_at')
+            ->whereNull('suppressed_at')
+            ->whereNull('claimed_at')
             ->where('attempts', '<', $cap)
             ->where('created_at', '<=', $cutoff)
             ->get();
 
         foreach ($notifications as $notification) {
             SendCustomerNotificationJob::dispatch($notification->id);
+        }
+
+        if ($released > 0) {
+            $this->info("Released {$released} stale notification claim(s).");
         }
 
         $this->info("Re-dispatched {$events->count()} webhook event(s) and {$notifications->count()} notification(s).");

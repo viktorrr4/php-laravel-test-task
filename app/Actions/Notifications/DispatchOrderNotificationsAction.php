@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Actions\Notifications;
 
 use App\Enums\NotificationType;
-use App\Enums\OrderStatus;
 use App\Jobs\SendCustomerNotificationJob;
 use App\Models\CustomerNotification;
 use App\Models\Order;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Decides which customer emails the current order state warrants and queues the
@@ -28,7 +28,7 @@ class DispatchOrderNotificationsAction
 {
     public function __invoke(Order $order): void
     {
-        foreach ($this->desiredTypes($order) as $type) {
+        foreach (NotificationType::desiredFor($order) as $type) {
             $notification = CustomerNotification::firstOrCreate(
                 ['order_id' => $order->id, 'type' => $type->value],
             );
@@ -36,33 +36,15 @@ class DispatchOrderNotificationsAction
             // Only the event that first created the row queues the email;
             // dispatch after commit so a rolled-back row never sends.
             if ($notification->wasRecentlyCreated) {
+                Log::info('notification.queued', [
+                    'notification_id' => $notification->id,
+                    'order_id' => $order->id,
+                    'type' => $type->value,
+                    'status' => $order->status->value,
+                ]);
+
                 SendCustomerNotificationJob::dispatch($notification->id)->afterCommit();
             }
         }
-    }
-
-    /**
-     * @return list<NotificationType>
-     */
-    private function desiredTypes(Order $order): array
-    {
-        // A cancelled order must never emit paid/shipped mails — that would
-        // contradict its current state. The cancellation mail itself notes the
-        // refund when the order had been paid.
-        if ($order->status === OrderStatus::Cancelled) {
-            return [NotificationType::Cancelled];
-        }
-
-        $types = [];
-
-        if ($order->paid_at !== null) {
-            $types[] = NotificationType::Paid;
-        }
-
-        if ($order->shipment !== null) {
-            $types[] = NotificationType::Shipped;
-        }
-
-        return $types;
     }
 }

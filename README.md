@@ -17,22 +17,44 @@
 
 ## Запуск с нуля
 
+На чистом checkout'е ещё нет каталога `vendor/`, поэтому `./vendor/bin/sail`
+пока недоступен. Сначала ставим зависимости (и сам Sail) одноразовым
+контейнером Composer, и только потом поднимаем окружение.
+
 ```bash
-# 1. Переменные окружения
+# 1. Установить PHP-зависимости (и получить Sail) без локального PHP/Composer.
+#    Образ php84-composer публикуется на Docker Hub (php85 ещё нет), а
+#    --ignore-platform-reqs снимает проверку версии: сборка и запуск всё равно
+#    идут внутри Sail-контейнера на PHP 8.5.
+docker run --rm \
+  -u "$(id -u):$(id -g)" \
+  -v "$(pwd):/var/www/html" \
+  -w /var/www/html \
+  laravelsail/php84-composer:latest \
+  composer install --ignore-platform-reqs
+
+# 2. Переменные окружения
 cp .env.example .env
 # Пропишите секрет подписи вебхуков (любое значение, одинаковое с отправителем):
 #   MARKETPLACE_WEBHOOK_SECRET=whsec_local_dev_secret
 
-# 2. Поднять контейнеры (app + mysql + redis + mailpit + queue worker)
+# 3. Поднять контейнеры (app + mysql + redis + mailpit + queue worker)
 ./vendor/bin/sail up -d --build
 
-# 3. Ключ приложения и миграции
+# 4. Ключ приложения и миграции
 ./vendor/bin/sail artisan key:generate
 ./vendor/bin/sail artisan migrate
 ```
 
-Воркер очереди поднимается отдельным контейнером `queue` автоматически (`php artisan
-queue:work`), поэтому запускать его вручную не нужно.
+Приложение по умолчанию поднимается на порту `8000` (переменная `APP_PORT`
+в `.env`), адреса сервисов — в таблице ниже.
+
+Воркеры и планировщик поднимаются отдельными контейнерами автоматически, запускать вручную
+ничего не нужно:
+- `queue-webhooks` — обработка событий (`queue:work --queue=webhooks`);
+- `queue-mail` — отправка писем (`queue:work --queue=mail`);
+- `scheduler` — `schedule:work`, каждые 5 минут гоняет `app:reconcile-queued-work` для
+  восстановления зависших заданий.
 
 ### Адреса
 
@@ -82,8 +104,11 @@ MARKETPLACE_WEBHOOK_SECRET=whsec_local_dev_secret \
 - `app/Http/Controllers/Webhooks/MarketplaceWebhookController.php` — тонкий контроллер:
   идемпотентно сохраняет событие и ставит задачу в очередь, отвечает `202` в пределах 5 секунд.
 - `app/Actions/` — вся бизнес-логика: применение снимка заказа (`UpsertOrderFromSnapshotAction`),
-  оркестрация обработки события (`ProcessWebhookEventAction`), отправка писем
-  (`SendOrderNotificationsAction`).
+  оркестрация обработки события (`ProcessWebhookEventAction`), постановка писем в очередь
+  (`DispatchOrderNotificationsAction`).
+- `app/Jobs/` — `ProcessWebhookEventJob` (очередь `webhooks`) и `SendCustomerNotificationJob`
+  (очередь `mail`); упавшие задания видны по `attempts`/`last_error` в доменных таблицах и
+  восстанавливаются командой `app:reconcile-queued-work`.
 - `app/Http/Controllers/Api/OrderController.php` + `app/Http/Resources/` — admin API по
   контракту `task/openapi.yaml`.
 

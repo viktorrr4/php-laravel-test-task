@@ -16,14 +16,20 @@ final class WebhookSignatureVerifier
     public function __construct(
         private readonly string $secret,
         private readonly int $tolerance = 300,
-    ) {
-    }
+    ) {}
 
     /**
      * Constant-time check that the provided signature header matches the body.
      */
     public function isValid(string $timestamp, string $rawBody, string $signatureHeader): bool
     {
+        // A missing secret cannot authenticate anything: treat it as invalid
+        // rather than verifying against an empty HMAC key, which would let any
+        // request forge a matching signature (fail-open).
+        if ($this->secret === '') {
+            return false;
+        }
+
         $provided = $this->extractHex($signatureHeader);
 
         if ($provided === null) {

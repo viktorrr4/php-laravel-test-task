@@ -28,4 +28,40 @@ enum NotificationType: string
             self::Cancelled => new OrderCancelledMail($order),
         };
     }
+
+    /**
+     * The email types the order's current stored state warrants — the single
+     * source of truth for both queuing (which emails to create) and sending
+     * (whether a queued email is still valid). A cancelled order yields only the
+     * cancellation mail, so a paid/shipped mail queued before the cancellation is
+     * no longer desired and must be suppressed rather than sent.
+     *
+     * @return list<self>
+     */
+    public static function desiredFor(Order $order): array
+    {
+        if ($order->status === OrderStatus::Cancelled) {
+            return [self::Cancelled];
+        }
+
+        $types = [];
+
+        if ($order->paid_at !== null) {
+            $types[] = self::Paid;
+        }
+
+        if ($order->shipment !== null) {
+            $types[] = self::Shipped;
+        }
+
+        return $types;
+    }
+
+    /**
+     * Whether an email of this type still matches the order's current state.
+     */
+    public function isValidFor(Order $order): bool
+    {
+        return in_array($this, self::desiredFor($order), true);
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
-    /** @use HasFactory<\Database\Factories\OrderFactory> */
+    /** @use HasFactory<OrderFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -31,6 +32,7 @@ class Order extends Model
         'cancel_reason',
         'marketplace_created_at',
         'marketplace_updated_at',
+        'last_event_at',
     ];
 
     protected function casts(): array
@@ -44,6 +46,7 @@ class Order extends Model
             'cancelled_at' => 'datetime',
             'marketplace_created_at' => 'datetime',
             'marketplace_updated_at' => 'datetime',
+            'last_event_at' => 'datetime',
         ];
     }
 

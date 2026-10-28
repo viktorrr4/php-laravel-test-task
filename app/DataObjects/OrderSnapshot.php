@@ -38,8 +38,7 @@ final class OrderSnapshot
         public readonly ?string $cancelReason,
         public readonly CarbonImmutable $createdAt,
         public readonly CarbonImmutable $updatedAt,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array<string, mixed>  $order
@@ -79,10 +78,16 @@ final class OrderSnapshot
         );
     }
 
+    /**
+     * MarketHub sends timestamps with an explicit offset (`+03:00`, `+00:00`).
+     * We normalize every one to UTC so the stored moment and all freshness
+     * comparisons are offset-independent: `13:05:47+03:00` and `10:05:47+00:00`
+     * are the same instant and must compare and persist as such.
+     */
     private static function parseDate(?string $value): ?CarbonImmutable
     {
         return $value === null || $value === ''
             ? null
-            : CarbonImmutable::parse($value);
+            : CarbonImmutable::parse($value)->utc();
     }
 }

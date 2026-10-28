@@ -18,8 +18,11 @@ return new class extends Migration
 
             $table->timestamps();
 
-            // Each status is recorded once per order (idempotent on replays).
-            $table->unique(['order_id', 'status']);
+            // Keyed on the moment of the transition: each distinct transition is
+            // kept (a manual re-ship, or a status recurring at a new time), while
+            // a replay of the same event (same status at the same moment) stays
+            // idempotent.
+            $table->unique(['order_id', 'status', 'occurred_at']);
         });
     }
 

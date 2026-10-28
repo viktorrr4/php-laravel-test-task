@@ -22,8 +22,7 @@ class ProcessWebhookEventAction
     public function __construct(
         private readonly UpsertOrderFromSnapshotAction $upsertOrder,
         private readonly DispatchOrderNotificationsAction $dispatchNotifications,
-    ) {
-    }
+    ) {}
 
     public function __invoke(WebhookEvent $event): void
     {
@@ -36,7 +35,11 @@ class ProcessWebhookEventAction
 
             $snapshot = OrderSnapshot::fromArray($locked->payload['data']['order']);
 
-            $order = ($this->upsertOrder)($snapshot);
+            // The event's own creation moment tie-breaks snapshots that share an
+            // `updated_at`, normalized to UTC like every marketplace timestamp.
+            $eventOccurredAt = CarbonImmutable::parse($locked->marketplace_created_at)->utc();
+
+            $order = ($this->upsertOrder)($snapshot, $eventOccurredAt);
             ($this->dispatchNotifications)($order);
 
             $locked->forceFill(['processed_at' => CarbonImmutable::now()])->save();
