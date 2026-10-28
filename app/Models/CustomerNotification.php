@@ -15,13 +15,21 @@ class CustomerNotification extends Model
         'order_id',
         'type',
         'sent_at',
+        'attempts',
+        'last_error',
     ];
 
     protected function casts(): array
     {
         return [
             'sent_at' => 'datetime',
+            'attempts' => 'integer',
         ];
+    }
+
+    public function isSent(): bool
+    {
+        return $this->sent_at !== null;
     }
 
     /** @return BelongsTo<Order, $this> */

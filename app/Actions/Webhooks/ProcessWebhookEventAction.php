@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Webhooks;
 
-use App\Actions\Notifications\SendOrderNotificationsAction;
+use App\Actions\Notifications\DispatchOrderNotificationsAction;
 use App\DataObjects\OrderSnapshot;
 use App\Models\WebhookEvent;
 use Carbon\CarbonImmutable;
@@ -21,7 +21,7 @@ class ProcessWebhookEventAction
 {
     public function __construct(
         private readonly UpsertOrderFromSnapshotAction $upsertOrder,
-        private readonly SendOrderNotificationsAction $sendNotifications,
+        private readonly DispatchOrderNotificationsAction $dispatchNotifications,
     ) {
     }
 
@@ -37,7 +37,7 @@ class ProcessWebhookEventAction
             $snapshot = OrderSnapshot::fromArray($locked->payload['data']['order']);
 
             $order = ($this->upsertOrder)($snapshot);
-            ($this->sendNotifications)($order);
+            ($this->dispatchNotifications)($order);
 
             $locked->forceFill(['processed_at' => CarbonImmutable::now()])->save();
         });

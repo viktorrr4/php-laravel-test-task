@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Reconciliation cap
+    |--------------------------------------------------------------------------
+    |
+    | Max number of failed attempts after which app:reconcile-queued-work stops
+    | re-dispatching a stuck webhook event or customer notification. Beyond this
+    | the row is left as a visible dead letter instead of looping forever.
+    |
+    */
+
+    'reconcile_cap' => (int) env('QUEUE_RECONCILE_CAP', 10),
+
+    /*
+    |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------
     |

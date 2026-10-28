@@ -16,6 +16,8 @@ class WebhookEvent extends Model
         'signature_valid',
         'received_at',
         'processed_at',
+        'attempts',
+        'last_error',
     ];
 
     protected function casts(): array

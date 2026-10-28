@@ -14,7 +14,12 @@ return new class extends Migration
 
             // paid | shipped | cancelled
             $table->string('type', 32);
-            $table->timestamp('sent_at');
+            // Null while the email is queued but not yet delivered.
+            $table->timestamp('sent_at')->nullable();
+
+            // Delivery attempts that have failed, and the last error seen.
+            $table->unsignedInteger('attempts')->default(0);
+            $table->text('last_error')->nullable();
 
             $table->timestamps();
 

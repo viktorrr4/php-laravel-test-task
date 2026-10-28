@@ -23,6 +23,10 @@ return new class extends Migration
             // Set once the event has been fully applied; makes re-processing a no-op.
             $table->timestamp('processed_at')->nullable();
 
+            // Processing attempts that have failed, and the last error seen.
+            $table->unsignedInteger('attempts')->default(0);
+            $table->text('last_error')->nullable();
+
             $table->timestamps();
         });
     }
